@@ -1,117 +1,121 @@
 function Find-DbaAgentJob {
     <#
-        .SYNOPSIS
-            Find-DbaAgentJob finds agent job/s that fit certain search filters.
+    .SYNOPSIS
+        Find-DbaAgentJob finds agent jobs that fit certain search filters.
 
-        .DESCRIPTION
-            This command filters SQL Agent jobs giving the DBA a list of jobs that may need attention or could possibly be options for removal.
+    .DESCRIPTION
+        This command filters SQL Agent jobs giving the DBA a list of jobs that may need attention or could possibly be options for removal.
 
-        .PARAMETER SqlInstance
-            The SQL Server instance. You must have sysadmin access and server version must be SQL Server version 2000 or higher.
+    .PARAMETER SqlInstance
+        The target SQL Server instance or instances. You must have sysadmin access and server version must be SQL Server version 2000 or higher.
 
-        .PARAMETER SqlCredential
-            Allows you to login to servers using SQL Logins as opposed to Windows Auth/Integrated/Trusted.
+    .PARAMETER SqlCredential
+        Login to the target instance using alternative credentials. Accepts PowerShell credentials (Get-Credential).
 
-        .PARAMETER JobName
-            Filter agent jobs to only the name(s) you list.
-            Supports regular expression (e.g. MyJob*) being passed in.
+        Windows Authentication, SQL Server Authentication, Active Directory - Password, and Active Directory - Integrated are all supported.
 
-        .PARAMETER ExcludeJobName
-            Allows you to enter an array of agent job names to ignore
+        For MFA support, please use Connect-DbaInstance.
 
-        .PARAMETER StepName
-            Filter based on StepName.
-            Supports regular expression (e.g. MyJob*) being passed in.
+    .PARAMETER JobName
+        Filter agent jobs to only the name(s) you list.
+        Supports regular expression (e.g. MyJob*) being passed in.
 
-        .PARAMETER LastUsed
-            Find all jobs that havent ran in the INT number of previous day(s)
+    .PARAMETER ExcludeJobName
+        Allows you to enter an array of agent job names to ignore
 
-        .PARAMETER IsDisabled
-            Find all jobs that are disabled
+    .PARAMETER StepName
+        Filter based on StepName.
+        Supports regular expression (e.g. MyJob*) being passed in.
 
-        .PARAMETER IsFailed
-            Find all jobs that have failed
+    .PARAMETER LastUsed
+        Find all jobs that havent ran in the INT number of previous day(s)
 
-        .PARAMETER IsNotScheduled
-            Find all jobs with no schedule assigned
+    .PARAMETER IsDisabled
+        Find all jobs that are disabled
 
-        .PARAMETER IsNoEmailNotification
-            Find all jobs without email notification configured
+    .PARAMETER IsFailed
+        Find all jobs that have failed
 
-        .PARAMETER Category
-            Filter based on agent job categories
+    .PARAMETER IsNotScheduled
+        Find all jobs with no schedule assigned
 
-        .PARAMETER Owner
-            Filter based on owner of the job/s
+    .PARAMETER IsNoEmailNotification
+        Find all jobs without email notification configured
 
-        .PARAMETER Since
-            Datetime object used to narrow the results to a date
+    .PARAMETER Category
+        Filter based on agent job categories
 
-        .PARAMETER EnableException
-            By default, when something goes wrong we try to catch it, interpret it and give you a friendly warning message.
-            This avoids overwhelming you with "sea of red" exceptions, but is inconvenient because it basically disables advanced scripting.
-            Using this switch turns this "nice by default" feature off and enables you to catch exceptions with your own try/catch.
+    .PARAMETER Owner
+        Filter based on owner of the job/s
 
-        .NOTES
-            Tags: Agent, Job
-            Author: Stephen Bennett (https://sqlnotesfromtheunderground.wordpress.com/)
+    .PARAMETER Since
+        Datetime object used to narrow the results to a date
 
-            Website: https://dbatools.io
-            Copyright: (C) Chrissy LeMaire, clemaire@gmail.com
-            License: MIT https://opensource.org/licenses/MIT
+    .PARAMETER EnableException
+        By default, when something goes wrong we try to catch it, interpret it and give you a friendly warning message.
+        This avoids overwhelming you with "sea of red" exceptions, but is inconvenient because it basically disables advanced scripting.
+        Using this switch turns this "nice by default" feature off and enables you to catch exceptions with your own try/catch.
 
-        .LINK
-            https://dbatools.io/Find-DbaAgentJob
+    .NOTES
+        Tags: Agent, Job
+        Author: Stephen Bennett (https://sqlnotesfromtheunderground.wordpress.com/)
 
-        .EXAMPLE
-            Find-DbaAgentJob -SqlInstance Dev01 -JobName backup*
+        Website: https://dbatools.io
+        Copyright: (c) 2018 by dbatools, licensed under MIT
+        License: MIT https://opensource.org/licenses/MIT
 
-            Returns all agent job(s) that have backup in the name
+    .LINK
+        https://dbatools.io/Find-DbaAgentJob
 
-        .EXAMPLE
-            Find-DbaAgentJob -SqlInstance Dev01, Dev02 -JobName Mybackup
+    .EXAMPLE
+        PS C:\> Find-DbaAgentJob -SqlInstance Dev01 -JobName *backup*
 
-            Returns all agent job(s) that are named exactly Mybackup
+        Returns all agent job(s) that have backup in the name
 
-        .EXAMPLE
-            Find-DbaAgentJob -SqlInstance Dev01 -LastUsed 10
+    .EXAMPLE
+        PS C:\> Find-DbaAgentJob -SqlInstance Dev01, Dev02 -JobName Mybackup
 
-            Returns all agent job(s) that have not ran in 10 days
+        Returns all agent job(s) that are named exactly Mybackup
 
-        .EXAMPLE
-            Find-DbaAgentJob -SqlInstance Dev01 -IsDisabled -IsNoEmailNotification -IsNotScheduled
+    .EXAMPLE
+        PS C:\> Find-DbaAgentJob -SqlInstance Dev01 -LastUsed 10
 
-            Returns all agent job(s) that are either disabled, have no email notification or don't have a schedule. returned with detail
+        Returns all agent job(s) that have not ran in 10 days
 
-        .EXAMPLE
-            $servers | Find-DbaAgentJob -IsFailed | Start-DbaAgentJob
+    .EXAMPLE
+        PS C:\> Find-DbaAgentJob -SqlInstance Dev01 -IsDisabled -IsNoEmailNotification -IsNotScheduled
 
-            Finds all failed job then starts them. Consider using a -WhatIf at the end of Start-DbaAgentJob to see what it'll do first
+        Returns all agent job(s) that are either disabled, have no email notification or don't have a schedule. returned with detail
 
-        .EXAMPLE
-            Find-DbaAgentJob -SqlInstance Dev01 -LastUsed 10 -Exclude "Yearly - RollUp Workload", "SMS - Notification"
+    .EXAMPLE
+        PS C:\> $servers | Find-DbaAgentJob -IsFailed | Start-DbaAgentJob
 
-            Returns all agent jobs that havent ran in the last 10 ignoring jobs "Yearly - RollUp Workload" and "SMS - Notification"
+        Finds all failed job then starts them. Consider using a -WhatIf at the end of Start-DbaAgentJob to see what it'll do first
 
-        .EXAMPLE
-            Find-DbaAgentJob -SqlInstance Dev01 -Category "REPL-Distribution", "REPL-Snapshot" -Detailed | Format-Table -AutoSize -Wrap
+    .EXAMPLE
+        PS C:\> Find-DbaAgentJob -SqlInstance Dev01 -LastUsed 10 -Exclude "Yearly - RollUp Workload", "SMS - Notification"
 
-            Returns all job/s on Dev01 that are in either category "REPL-Distribution" or "REPL-Snapshot" with detailed output
+        Returns all agent jobs that have not ran in the last 10 days ignoring jobs "Yearly - RollUp Workload" and "SMS - Notification"
 
-        .EXAMPLE
-            Find-DbaAgentJob -SqlInstance Dev01, Dev02 -IsFailed -Since '7/1/2016 10:47:00'
+    .EXAMPLE
+        PS C:\> Find-DbaAgentJob -SqlInstance Dev01 -Category "REPL-Distribution", "REPL-Snapshot" | Format-Table -AutoSize -Wrap
 
-            Returns all agent job(s) that have failed since July of 2016 (and still have history in msdb)
+        Returns all job/s on Dev01 that are in either category "REPL-Distribution" or "REPL-Snapshot"
 
-        .EXAMPLE
-            Get-DbaRegisteredServer -SqlInstance CMSServer -Group Production | Find-DbaAgentJob -Disabled -IsNotScheduled | Format-Table -AutoSize -Wrap
+    .EXAMPLE
+        PS C:\> Find-DbaAgentJob -SqlInstance Dev01, Dev02 -IsFailed -Since '2016-07-01 10:47:00'
 
-            Queries CMS server to return all SQL instances in the Production folder and then list out all agent jobs that have either been disabled or have no schedule.
+        Returns all agent job(s) on Dev01 and Dev02 that have failed since July of 2016 (and still have history in msdb)
+
+    .EXAMPLE
+        PS C:\> Get-DbaRegServer -SqlInstance CMSServer -Group Production | Find-DbaAgentJob -Disabled -IsNotScheduled | Format-Table -AutoSize -Wrap
+
+        Queries CMS server to return all SQL instances in the Production folder and then list out all agent jobs that have either been disabled or have no schedule.
+
     #>
     [CmdletBinding()]
-    Param (
-        [parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $True)]
-        [Alias("ServerInstance", "SqlServer", "SqlServers")]
+    param (
+        [parameter(Mandatory, ValueFromPipeline)]
         [DbaInstanceParameter[]]$SqlInstance,
         [PSCredential]
         $SqlCredential,
@@ -131,7 +135,6 @@ function Find-DbaAgentJob {
         [string[]]$Category,
         [string]$Owner,
         [datetime]$Since,
-        [Alias('Silent')]
         [switch]$EnableException
     )
     begin {
@@ -146,11 +149,9 @@ function Find-DbaAgentJob {
             Write-Message -Level Verbose -Message "Running Scan on: $instance"
 
             try {
-                Write-Message -Level Verbose -Message "Connecting to $instance"
                 $server = Connect-SqlInstance -SqlInstance $instance -SqlCredential $sqlcredential
-            }
-            catch {
-                Stop-Function -Message "Failure" -Category ConnectionError -ErrorRecord $_ -Target $instance -Continue
+            } catch {
+                Stop-Function -Message "Error occurred while establishing connection to $instance" -Category ConnectionError -ErrorRecord $_ -Target $instance -Continue
             }
 
             $jobs = $server.JobServer.jobs
@@ -203,8 +204,7 @@ function Find-DbaAgentJob {
                     $OwnerMatch = $Owner -replace "-", ""
                     Write-Message -Level Verbose -Message "Checking for jobs that NOT owned by: $OwnerMatch"
                     $output += $server.JobServer.jobs | Where-Object { $OwnerMatch -notcontains $_.OwnerLoginName }
-                }
-                else {
+                } else {
                     Write-Message -Level Verbose -Message "Checking for jobs that are owned by: $owner"
                     $output += $server.JobServer.jobs | Where-Object { $Owner -contains $_.OwnerLoginName }
                 }
@@ -224,7 +224,7 @@ function Find-DbaAgentJob {
             $jobs = $output | Select-Object -Unique
 
             foreach ($job in $jobs) {
-                Add-Member -Force -InputObject $job -MemberType NoteProperty -Name ComputerName -value $server.NetName
+                Add-Member -Force -InputObject $job -MemberType NoteProperty -Name ComputerName -value $server.ComputerName
                 Add-Member -Force -InputObject $job -MemberType NoteProperty -Name InstanceName -value $server.ServiceName
                 Add-Member -Force -InputObject $job -MemberType NoteProperty -Name SqlInstance -value $server.DomainInstanceName
                 Add-Member -Force -InputObject $job -MemberType NoteProperty -Name JobName -value $job.Name

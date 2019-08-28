@@ -6,11 +6,10 @@ function Get-SqlSaLogin {
             The SQL Server instance.
         .PARAMETER SqlCredential
             Allows you to login to servers using SQL Logins instead of Windows Authentication (AKA Integrated or Trusted).
-    #>
+       #>
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
-        [Alias("ServerInstance", "SqlServer")]
+        [Parameter(Mandatory)]
         [object]$SqlInstance,
         [PSCredential]$SqlCredential
     )

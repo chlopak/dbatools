@@ -1,20 +1,23 @@
-﻿function Test-DbaDiskSpeed {
+function Test-DbaDiskSpeed {
     <#
     .SYNOPSIS
-        Tests how disks are performing
+        Tests how disks are performing.
 
     .DESCRIPTION
-        Tests how disks are performing
+        Tests how disks are performing.
 
-        This command uses a query from Rich Benner which was adapted from David Pless's article:
-        https://blogs.msdn.microsoft.com/dpless/2010/12/01/leveraging-sys-dm_io_virtual_file_stats/
+        This command uses a query from Rich Benner
         https://github.com/RichBenner/PersonalCode/blob/master/Disk_Speed_Check.sql
 
     .PARAMETER SqlInstance
-        Allows you to specify a comma separated list of servers to query.
+        The target SQL Server instance or instances.
 
     .PARAMETER SqlCredential
-       Allows you to login to the SQL Server using alternative credentials.
+        Login to the target instance using alternative credentials. Accepts PowerShell credentials (Get-Credential).
+
+        Windows Authentication, SQL Server Authentication, Active Directory - Password, and Active Directory - Integrated are all supported.
+
+        For MFA support, please use Connect-DbaInstance.
 
     .PARAMETER Database
         The database(s) to process - this list is auto-populated from the server. If unspecified, all databases will be processed.
@@ -28,31 +31,32 @@
         Using this switch turns this "nice by default" feature off and enables you to catch exceptions with your own try/catch.
 
     .NOTES
-        Author: Chrissy LeMaire
         Tags: Performance
+        Author: Chrissy LeMaire (@cl), netnerds.net
 
         Website: https://dbatools.io
-        Copyright: (C) Chrissy LeMaire, clemaire@gmail.com
+        Copyright: (c) 2018 by dbatools, licensed under MIT
         License: MIT https://opensource.org/licenses/MIT
 
     .LINK
         https://dbatools.io/Test-DbaDiskSpeed
 
     .EXAMPLE
-        Test-DbaDiskSpeed -SqlInstance sql2008, sqlserver2012
+        PS C:\> Test-DbaDiskSpeed -SqlInstance sql2008, sqlserver2012
+
         Tests how disks are performing on sql2008 and sqlserver2012.
 
     .EXAMPLE
-        Test-DbaDiskSpeed -SqlInstance sql2008 -Database tempdb
-        Tests how disks storing tempdb files on sql2008 are performing
+        PS C:\> Test-DbaDiskSpeed -SqlInstance sql2008 -Database tempdb
+
+        Tests how disks storing tempdb files on sql2008 are performing.
+
     #>
     [CmdletBinding()]
-    Param (
-        [parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $True)]
-        [Alias("ServerInstance", "SqlServer", "SqlServers")]
+    param (
+        [parameter(Mandatory, ValueFromPipeline)]
         [DbaInstance[]]$SqlInstance,
         [PSCredential]$SqlCredential,
-        [Alias("Databases")]
         [object[]]$Database,
         [object[]]$ExcludeDatabase,
         [switch]$EnableException
@@ -64,7 +68,7 @@
         ISNULL(SERVERPROPERTY('InstanceName'), 'MSSQLSERVER') AS InstanceName,
         SERVERPROPERTY('ServerName') AS SqlInstance, db_name(a.database_id) AS [Database]
         , CAST(((a.size_on_disk_bytes/1024)/1024.0)/1024 AS DECIMAL(10,2)) AS [SizeGB]
-        , b.name AS [FileName]
+        , RIGHT(b.physical_name, CHARINDEX('\', REVERSE(b.physical_name)) -1) AS [FileName]
         , a.file_id AS [FileID]
         , CASE WHEN a.file_id = 2 THEN 'Log' ELSE 'Data' END AS [FileType]
         , UPPER(SUBSTRING(b.physical_name, 1, 2)) AS [DiskLocation]
@@ -104,13 +108,11 @@
 
     process {
         foreach ($instance in $SqlInstance) {
-            Write-Message -Level Verbose -Message "Attempting to connect to $instance"
 
             try {
                 $server = Connect-SqlInstance -SqlInstance $instance -SqlCredential $SqlCredential -MinimumVersion 9
-            }
-            catch {
-                Stop-Function -Message "Failure" -Category ConnectionError -ErrorRecord $_ -Target $instance -Continue
+            } catch {
+                Stop-Function -Message "Error occurred while establishing connection to $instance" -Category ConnectionError -ErrorRecord $_ -Target $instance -Continue
             }
             Write-Message -Level Debug -Message "Executing $sql"
             $server.Query("$sql")

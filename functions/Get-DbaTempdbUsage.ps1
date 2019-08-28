@@ -1,47 +1,54 @@
 function Get-DbaTempdbUsage {
     <#
     .SYNOPSIS
-    Gets Tempdb usage for running queries.
+        Gets Tempdb usage for running queries.
 
     .DESCRIPTION
-    This function queries DMVs for running sessions using Tempdb and returns results if those sessions have user or internal space allocated or deallocated against them.
+        This function queries DMVs for running sessions using tempdb and returns results if those sessions have user or internal space allocated or deallocated against them.
 
     .PARAMETER SqlInstance
-    The SQL Instance you are querying against.
+        The target SQL Server instance or instances.
 
     .PARAMETER SqlCredential
-    If you want to use alternative credentials to connect to the server.
+        Login to the target instance using alternative credentials. Accepts PowerShell credentials (Get-Credential).
+
+        Windows Authentication, SQL Server Authentication, Active Directory - Password, and Active Directory - Integrated are all supported.
+
+        For MFA support, please use Connect-DbaInstance.
 
     .PARAMETER WhatIf
-    Shows what would happen if the command were to run. No actions are actually performed.
+        Shows what would happen if the command were to run. No actions are actually performed.
 
     .PARAMETER Confirm
-    Prompts you for confirmation before executing any changing operations within the command.
+        Prompts you for confirmation before executing any changing operations within the command.
 
     .PARAMETER EnableException
-    By default, when something goes wrong we try to catch it, interpret it and give you a friendly warning message.
-    This avoids overwhelming you with "sea of red" exceptions, but is inconvenient because it basically disables advanced scripting.
-    Using this switch turns this "nice by default" feature off and enables you to catch exceptions with your own try/catch.
+        By default, when something goes wrong we try to catch it, interpret it and give you a friendly warning message.
+        This avoids overwhelming you with "sea of red" exceptions, but is inconvenient because it basically disables advanced scripting.
+        Using this switch turns this "nice by default" feature off and enables you to catch exceptions with your own try/catch.
 
     .NOTES
-    dbatools PowerShell module (https://dbatools.io, clemaire@gmail.com)
-    Copyright (C) 2016 Chrissy LeMaire
-    License: MIT https://opensource.org/licenses/MIT
+        Tags: Tempdb, Space
+        Author: Chrissy LeMaire (@cl), netnerds.net
+
+        Website: https://dbatools.io
+        Copyright: (c) 2018 by dbatools, licensed under MIT
+        License: MIT https://opensource.org/licenses/MIT
 
     .LINK
-    https://dbatools.io/Get-DbaTempdbUsage
-    .EXAMPLE
-    Get-DbaTempdbUsage -SqlInstance localhost\SQLDEV2K14
+        https://dbatools.io/Get-DbaTempdbUsage
 
-    Gets tempdb usage for localhost\SQLDEV2K14
+    .EXAMPLE
+        PS C:\> Get-DbaTempdbUsage -SqlInstance localhost\SQLDEV2K14
+
+        Gets tempdb usage for localhost\SQLDEV2K14
+
     #>
     [CmdletBinding()]
     param (
-        [parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        [Alias("ServerInstance", "SqlServer")]
+        [parameter(Mandatory, ValueFromPipeline)]
         [DbaInstanceParameter[]]$SqlInstance,
         [PSCredential]$SqlCredential,
-        [Alias('Silent')]
         [switch]$EnableException
     )
 
@@ -49,9 +56,8 @@ function Get-DbaTempdbUsage {
         foreach ($instance in $SqlInstance) {
             try {
                 $server = Connect-SqlInstance -SqlInstance $instance -SqlCredential $sqlcredential
-            }
-            catch {
-                Stop-Function -Message "Failure" -Category ConnectionError -ErrorRecord $_ -Target $instance -Continue
+            } catch {
+                Stop-Function -Message "Error occurred while establishing connection to $instance" -Category ConnectionError -ErrorRecord $_ -Target $instance -Continue
             }
 
             if ($server.VersionMajor -le 9) {
